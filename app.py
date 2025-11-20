@@ -11,6 +11,21 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="African Diabetes Predictor", page_icon="🩺")
+st.image("futurizestudio_logo.jpeg", width=150)
+# -------------------------------------------
+# Team Section
+# -------------------------------------------
+
+st.sidebar.markdown("## 👥 Project Team")
+st.sidebar.markdown("""
+**Team Name:** Futurize Academy – Zenith-Trident Team  
+**Developers:**
+- **Joseph Duruh** — Lead Developer, AI/ML, Computational Neuroscience  
+- **Nasisira Seezibella** — IT Infrastructure, Network & Systems  
+- **Chimzyterem (Uche) Uche-Ukah** — Software Developer, Cloud, Frontend  
+""")
+
+
 
 @st.cache_data
 def load_data():

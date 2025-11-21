@@ -10,6 +10,16 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
 import matplotlib.pyplot as plt
 
+# -----------------------------------------
+# SAFE INITIALIZATION FOR HEALTH CHATBOT
+# -----------------------------------------
+if "health_chat_input" not in st.session_state:
+    st.session_state["health_chat_input"] = ""
+
+if "health_chat_history" not in st.session_state:
+    st.session_state["health_chat_history"] = []
+
+
 # ------------------------------------------------------------------
 # Simple rule-based "health assistant" reply (no external API)
 # ------------------------------------------------------------------

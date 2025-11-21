@@ -1,182 +1,406 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
-import matplotlib.pyplot as plt
 
-# -------------------------------
-# PAGE CONFIG + LOGO
-# -------------------------------
-st.set_page_config(page_title="African Diabetes Predictor")
-st.image("futurizestudio_logo.jpeg", width=150)
+# ---------------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="African Diabetes Predictor",
+    page_icon=None,
+    layout="wide"
+)
 
-# -------------------------------
-# TEAM SECTION
-# -------------------------------
+# ---------------------------------------------------------
+# SIDEBAR: LOGO + TEAM
+# ---------------------------------------------------------
+st.sidebar.image("futurizestudio_logo.jpeg", width=140)
+
 st.sidebar.title("Project Team")
 
-st.sidebar.markdown("""
-Team Name: Futurize Academy - Zenith-Trident Team
+st.sidebar.markdown(
+    "**Team Name:** Futurize Academy | Zenith-Trident Team"
+)
 
-Developers:
-- Joseph Duruh - Lead Developer (AI/ML)
-- Nasisira Seezibella - IT Infrastructure & Systems
-- Chimyzerem Janet Uche-Ukah - Software Developer
-""")
+st.sidebar.markdown(
+    "**Developers:**\n"
+    "- Joseph Duruh — Lead Developer (AI / ML)\n"
+    "- Nasisira Seezibella — IT Infrastructure & Systems\n"
+    "- Chimyzerem Janet Uche-Ukah — Software Developer (Cloud, Frontend)"
+)
 
-# -------------------------------
-# LOAD DATA
-# -------------------------------
+# ---------------------------------------------------------
+# DATA LOADING & PREPROCESSING
+# ---------------------------------------------------------
 @st.cache_data
 def load_data():
+    """
+    Load and preprocess the Pima Indians Diabetes dataset.
+    """
     url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
-    cols = ['preg','glucose','bp','skin','insulin','bmi','pedigree','age','class']
+    cols = [
+        "preg", "glucose", "bp", "skin", "insulin",
+        "bmi", "pedigree", "age", "class"
+    ]
     df = pd.read_csv(url, names=cols)
 
-    zero_cols = ['glucose','bp','skin','insulin','bmi']
+    # Replace impossible zero values with NaN for selected columns
+    zero_cols = ["glucose", "bp", "skin", "insulin", "bmi"]
     df[zero_cols] = df[zero_cols].replace(0, np.nan)
 
-    df['bmi'] = df['bmi'].fillna(df['bmi'].median())
-    df['glucose'] = df['glucose'].fillna(df['glucose'].median())
-    df.fillna(df.mean(), inplace=True)
+    # Fill missing values with median of each column
+    df[zero_cols] = df[zero_cols].fillna(df[zero_cols].median())
 
-    df['bmi_age'] = df['bmi'] * df['age']
-    df['glucose_bmi'] = df['glucose'] * df['bmi']
-    df['high_bp'] = (df['bp'] > 130).astype(int)
+    # Feature engineering
+    df["bmi_age"] = df["bmi"] * df["age"]
+    df["glucose_bmi"] = df["glucose"] * df["bmi"]
+    df["high_bp"] = (df["bp"] >= 130).astype(int)
 
     return df
 
-# -------------------------------
-# TRAIN MODELS
-# -------------------------------
-@st.cache_resource
-def train_models(df):
-    X = df.drop("class", axis=1)
-    y = df["class"]
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    X_train,X_test,y_train,y_test = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42)
-
-    models = {
-        "Logistic Regression": LogisticRegression(solver="liblinear"),
-        "Random Forest": RandomForestClassifier(n_estimators=150, random_state=42),
-        "XGBoost": XGBClassifier(eval_metric='logloss')
-    }
-
-    results = {}
-
-    for name, m in models.items():
-        m.fit(X_train, y_train)
-        preds = m.predict(X_test)
-        proba = m.predict_proba(X_test)[:, 1]
-
-        results[name] = {
-            "model": m,
-            "accuracy": accuracy_score(y_test, preds),
-            "auc": roc_auc_score(y_test, proba),
-            "scaler": scaler,
-            "features": X.columns
-        }
-
-    return results
 
 df = load_data()
-models = train_models(df)
 
-# -------------------------------
-# TITLE
-# -------------------------------
-st.markdown("<h1 style='color:#003366;'>African Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
-st.write("A prototype model using multiple machine learning algorithms.")
+# Features and target
+FEATURE_COLS = [
+    "preg", "glucose", "bp", "skin", "insulin",
+    "bmi", "pedigree", "age", "bmi_age", "glucose_bmi", "high_bp"
+]
+TARGET_COL = "class"
 
-# -------------------------------
-# MODEL SELECTION
-# -------------------------------
-selected = st.selectbox("Choose model", list(models.keys()))
-model_info = models[selected]
-model = model_info["model"]
-scaler = model_info["scaler"]
-features = model_info["features"]
+X = df[FEATURE_COLS]
+y = df[TARGET_COL]
 
-# PERFORMANCE
-st.subheader("Model Performance")
-st.write("Accuracy:", round(model_info["accuracy"],3))
-st.write("ROC-AUC:", round(model_info["auc"],3))
+# Standardize features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-# -------------------------------
-# PATIENT INPUT SIDEBAR
-# -------------------------------
-st.sidebar.header("Enter Patient Data")
+# Train / test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42, stratify=y
+)
 
-def user_input():
-    d = {}
-    for feature in features:
-        if feature == "high_bp":
-            continue
-        d[feature] = st.sidebar.number_input(feature, value=1.0)
-    d["high_bp"] = 1 if d["bp"] > 130 else 0
-    d["bmi_age"] = d["bmi"] * d["age"]
-    d["glucose_bmi"] = d["glucose"] * d["bmi"]
-    return pd.DataFrame([d])
+# ---------------------------------------------------------
+# MODEL TRAINING
+# ---------------------------------------------------------
+@st.cache_resource
+def train_models():
+    """
+    Train multiple models and return them with their metrics.
+    """
+    models = {}
 
-input_df = user_input()
+    # Logistic Regression
+    log_reg = LogisticRegression(max_iter=1000)
+    log_reg.fit(X_train, y_train)
+    models["Logistic Regression"] = log_reg
 
-st.subheader("Patient Input")
-st.write(input_df)
+    # Random Forest
+    rf = RandomForestClassifier(
+        n_estimators=300,
+        random_state=42,
+        max_depth=None
+    )
+    rf.fit(X_train, y_train)
+    models["Random Forest"] = rf
 
-# -------------------------------
-# PREDICTION
-# -------------------------------
-if st.button("Predict"):
+    # XGBoost
+    xgb = XGBClassifier(
+        n_estimators=300,
+        learning_rate=0.05,
+        max_depth=4,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        eval_metric="logloss",
+        random_state=42,
+        use_label_encoder=False
+    )
+    xgb.fit(X_train, y_train)
+    models["XGBoost"] = xgb
 
-    X = scaler.transform(input_df[features])
-    proba = model.predict_proba(X)[0][1]
-    pred = model.predict(X)[0]
+    # Metrics
+    metrics = {}
+    for name, model in models.items():
+        y_pred = model.predict(X_test)
+        if hasattr(model, "predict_proba"):
+            y_proba = model.predict_proba(X_test)[:, 1]
+        else:
+            # Fallback for models without predict_proba
+            y_proba = model.decision_function(X_test)
 
-    percent = round(proba*100,2)
+        acc = accuracy_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_proba)
+        metrics[name] = (acc, auc)
 
-    # ---------------------------
-    # COLOR CODING
-    # ---------------------------
-    if percent < 35:
-        color = "green"
-        label = "Low Risk"
-    elif percent < 65:
-        color = "gold"
-        label = "Medium Risk"
-    else:
-        color = "red"
-        label = "High Risk"
+    return models, metrics
 
-    # ---------------------------
-    # RESULT CARD
-    # ---------------------------
-    st.markdown(
-        f"""
-        <div style="
-            padding:15px;
-            border-radius:10px;
-            background-color:#f2f2f2;
-            border-left:10px solid {color};
-        ">
-            <h3 style="color:{color};">Prediction Result</h3>
-            <p><strong>Risk Score:</strong> {percent}%</p>
-            <p><strong>Risk Level:</strong> {label}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+
+models, model_metrics = train_models()
+
+# ---------------------------------------------------------
+# SIDEBAR: PATIENT INPUTS + RESET
+# ---------------------------------------------------------
+
+# Default values for inputs
+default_inputs = {
+    "preg": 2,
+    "glucose": 120,
+    "bp": 70,
+    "skin": 25,
+    "insulin": 80,
+    "bmi": 28.0,
+    "pedigree": 0.5,
+    "age": 35,
+}
+
+# Initialize session state once
+if "inputs_initialized" not in st.session_state:
+    for k, v in default_inputs.items():
+        st.session_state[k] = v
+    st.session_state["inputs_initialized"] = True
+
+st.sidebar.header("Patient Data")
+
+# Reset button
+if st.sidebar.button("Reset inputs"):
+    for k, v in default_inputs.items():
+        st.session_state[k] = v
+
+# Capture inputs
+preg = st.sidebar.number_input(
+    "Pregnancies",
+    min_value=0,
+    max_value=20,
+    value=int(st.session_state["preg"]),
+    step=1,
+    key="preg"
+)
+
+glucose = st.sidebar.number_input(
+    "Glucose",
+    min_value=0,
+    max_value=300,
+    value=int(st.session_state["glucose"]),
+    step=1,
+    key="glucose"
+)
+
+bp = st.sidebar.number_input(
+    "Blood Pressure",
+    min_value=0,
+    max_value=200,
+    value=int(st.session_state["bp"]),
+    step=1,
+    key="bp"
+)
+
+skin = st.sidebar.number_input(
+    "Skin Thickness",
+    min_value=0,
+    max_value=100,
+    value=int(st.session_state["skin"]),
+    step=1,
+    key="skin"
+)
+
+insulin = st.sidebar.number_input(
+    "Insulin",
+    min_value=0,
+    max_value=900,
+    value=int(st.session_state["insulin"]),
+    step=1,
+    key="insulin"
+)
+
+bmi = st.sidebar.number_input(
+    "BMI",
+    min_value=0.0,
+    max_value=70.0,
+    value=float(st.session_state["bmi"]),
+    step=0.1,
+    key="bmi"
+)
+
+pedigree = st.sidebar.number_input(
+    "Diabetes Pedigree",
+    min_value=0.0,
+    max_value=2.5,
+    value=float(st.session_state["pedigree"]),
+    step=0.01,
+    key="pedigree"
+)
+
+age = st.sidebar.number_input(
+    "Age",
+    min_value=18,
+    max_value=90,
+    value=int(st.session_state["age"]),
+    step=1,
+    key="age"
+)
+
+# Derived features based on inputs
+bmi_age = bmi * age
+glucose_bmi = glucose * bmi
+high_bp = 1 if bp >= 130 else 0
+
+# ---------------------------------------------------------
+# MAIN LAYOUT: TITLE + PERFORMANCE + ABOUT
+# ---------------------------------------------------------
+st.title("African Diabetes Risk Predictor")
+st.markdown(
+    "A prototype clinical decision support tool using multiple "
+    "machine learning algorithms on the Pima Indians Diabetes dataset."
+)
+
+perf_col, about_col = st.columns([2, 1])
+
+with perf_col:
+    st.subheader("Model Performance")
+
+    model_name = st.selectbox(
+        "Choose model",
+        options=list(models.keys()),
+        index=0
     )
 
-    # ---------------------------
-    # PROGRESS BAR
-    # ---------------------------
-    st.write("Risk Indicator:")
-    st.progress(percent/100)
+    sel_acc, sel_auc = model_metrics[model_name]
+
+    c1, c2 = st.columns(2)
+    c1.metric("Accuracy", f"{sel_acc:.2%}")
+    c2.metric("ROC-AUC", f"{sel_auc:.3f}")
+
+with about_col:
+    with st.expander("About the model and data", expanded=False):
+        st.markdown(
+            "- Dataset: Pima Indians Diabetes (768 samples, 8 clinical features)\n"
+            "- Target: Binary outcome indicating diabetes\n"
+            "- Features include pregnancies, glucose, blood pressure, insulin, BMI, "
+            "diabetes pedigree and age.\n"
+            "- Extra engineered features: BMI × Age, Glucose × BMI, and a high blood "
+            "pressure flag.\n\n"
+            "This app is for research and education. It does not replace medical "
+            "diagnosis or professional judgement."
+        )
+
+# ---------------------------------------------------------
+# PATIENT INPUT TABLE
+# ---------------------------------------------------------
+st.subheader("Patient Input Summary")
+
+patient_row = pd.DataFrame(
+    [{
+        "preg": preg,
+        "glucose": glucose,
+        "bp": bp,
+        "skin": skin,
+        "insulin": insulin,
+        "bmi": bmi,
+        "pedigree": pedigree,
+        "age": age,
+        "bmi_age": bmi_age,
+        "glucose_bmi": glucose_bmi,
+        "high_bp": high_bp,
+    }]
+)
+
+st.dataframe(
+    patient_row,
+    use_container_width=True
+)
+
+# ---------------------------------------------------------
+# PREDICTION
+# ---------------------------------------------------------
+if "history" not in st.session_state:
+    st.session_state["history"] = []
+
+predict_button = st.button("Predict")
+
+if predict_button:
+    # Scale patient input
+    X_new = scaler.transform(patient_row[FEATURE_COLS])
+
+    model = models[model_name]
+
+    if hasattr(model, "predict_proba"):
+        prob = float(model.predict_proba(X_new)[0, 1])
+    else:
+        # Convert decision function output to a probability-like value
+        score = model.decision_function(X_new)[0]
+        prob = 1 / (1 + np.exp(-score))
+
+    risk_score = prob * 100
+
+    # Risk categories
+    if prob < 0.33:
+        risk_level = "Low"
+    elif prob < 0.66:
+        risk_level = "Medium"
+    else:
+        risk_level = "High"
+
+    # Store in history
+    record = patient_row.copy()
+    record["model"] = model_name
+    record["risk_probability"] = prob
+    record["risk_level"] = risk_level
+    st.session_state["history"].append(record.iloc[0].to_dict())
+
+    # Results card
+    st.subheader("Prediction Result")
+
+    # Progress bar (0–100%)
+    st.write("Estimated risk probability")
+    st.progress(min(max(prob, 0.0), 1.0))
+
+    # Color-coded message
+    msg = f"Risk probability: {risk_score:.1f}% — {risk_level} risk"
+
+    if risk_level == "Low":
+        st.success(msg)
+    elif risk_level == "Medium":
+        st.warning(msg)
+    else:
+        st.error(msg)
+
+    # Summary metrics row
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Risk level", risk_level)
+    m2.metric("Risk score (0–100)", f"{risk_score:.1f}")
+    m3.metric("Model used", model_name)
+
+# ---------------------------------------------------------
+# HISTORY + DOWNLOAD
+# ---------------------------------------------------------
+st.subheader("Prediction History and Export")
+
+if st.session_state["history"]:
+    hist_df = pd.DataFrame(st.session_state["history"])
+    st.dataframe(hist_df, use_container_width=True, height=250)
+
+    csv = hist_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download history as CSV",
+        data=csv,
+        file_name="diabetes_predictions_history.csv",
+        mime="text/csv"
+    )
+else:
+    st.info("No predictions yet. Enter patient data and click Predict to see results.")
+
+# ---------------------------------------------------------
+# FOOTER
+# ---------------------------------------------------------
+st.markdown("---")
+st.markdown(
+    "This tool is an experimental prototype for educational and research purposes only. "
+    "It is not intended for clinical use or to guide real-world medical decisions."
+)

@@ -144,26 +144,27 @@ with st.sidebar.expander("Health Assistant (beta)", expanded=True):
     st.write("Ask simple questions about diabetes risk factors, lifestyle, or what the numbers mean.")
     st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
 
-    # User input
+    # User input (widget)
     user_question = st.text_area("Your question", key="health_chat_input")
 
     # Send button
     if st.button("Send", key="send_health_question"):
-        question = st.session_state.health_chat_input.strip()
+        question = st.session_state.get("health_chat_input", "").strip()
 
         if question:
-            # Generate answer (placeholder; replace later)
+            # Generate placeholder answer
             answer = f"Here is a simple explanation about: {question}"
 
-            # Save to history
+            # Save chat history
             st.session_state.health_chat_history.append(
                 {"q": question, "a": answer}
             )
 
-            # Clear box
-            st.session_state.health_chat_input = ""
+            # Clear only the widget VALUE, not the key assignment
+            st.session_state["health_chat_input"] = ""
+            st.rerun()   # REQUIRED to refresh the UI safely
 
-    # Display previous messages
+    # Display conversation history
     st.markdown("### Assistant Response")
     for chat in st.session_state.health_chat_history:
         st.write(f"**You:** {chat['q']}")

@@ -10,6 +10,35 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
 import matplotlib.pyplot as plt
 
+# =============================
+# HELPER FUNCTIONS FOR ASSISTANT
+# =============================
+
+def classify_question(question):
+    q = question.lower()
+    if any(word in q for word in ["preg", "pregnancies", "pregnancy"]):
+        return "pregnancies_info"
+    if any(word in q for word in ["glucose", "sugar level"]):
+        return "glucose_info"
+    if any(word in q for word in ["bmi", "weight", "obesity"]):
+        return "bmi_info"
+    if any(word in q for word in ["insulin"]):
+        return "insulin_info"
+    return "general_info"
+
+
+def generate_answer(category, question):
+    if category == "pregnancies_info":
+        return "‘Preg’ refers to the number of pregnancies the patient has had."
+    if category == "glucose_info":
+        return "Glucose refers to blood sugar concentration measured in mg/dL."
+    if category == "bmi_info":
+        return "BMI is Body Mass Index, a measure of body fat based on height and weight."
+    if category == "insulin_info":
+        return "Insulin level is the amount of insulin in blood and reflects pancreatic function."
+    return f"I can help explain diabetes risk factors. You asked: {question}"
+
+
 # -----------------------------------------
 # SAFE INITIALIZATION FOR HEALTH CHATBOT
 # -----------------------------------------

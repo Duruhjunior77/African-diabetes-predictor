@@ -135,41 +135,52 @@ st.sidebar.markdown(
     "- Nasisira Seezibella — IT Infrastructure & Systems\n"
     "- Chimyzerem Janet Uche-Ukah — Software Developer (Cloud, Frontend)"
 )
-# --------------------------------------------
-# SIDEBAR: HEALTH CHAT ASSISTANT (BETA)
-# --------------------------------------------
-
+# -----------------------------
+# HEALTH ASSISTANT (BETA)
+# -----------------------------
 with st.sidebar.expander("Health Assistant (beta)", expanded=True):
 
     st.write("Ask simple questions about diabetes risk factors, lifestyle, or what the numbers mean.")
     st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
 
-    # User input (widget)
-    user_question = st.text_area("Your question", key="health_chat_input")
+    # Initialize session state once
+    if "health_chat_input" not in st.session_state:
+        st.session_state["health_chat_input"] = ""
 
-    # Send button
-    if st.button("Send", key="send_health_question"):
-        question = st.session_state.get("health_chat_input", "").strip()
+    if "health_chat_history" not in st.session_state:
+        st.session_state["health_chat_history"] = []
+
+    # User input box
+    user_question = st.text_area(
+        "Your question",
+        key="health_chat_input",
+        placeholder="Type your question here..."
+    )
+
+    # Send Button
+    if st.button("Send", key="send_button"):
+
+        question = user_question.strip()
 
         if question:
-            # Generate placeholder answer
-            answer = f"Here is a simple explanation about: {question}"
+            # Simple placeholder answer (you can improve this)
+            answer = f"Here is a simple explanation about: **{question}**.\n(This is a beta response.)"
 
-            # Save chat history
+            # Append to chat history
             st.session_state.health_chat_history.append(
                 {"q": question, "a": answer}
             )
 
-            # Clear only the widget VALUE, not the key assignment
+            # Clear only the text box (safe method)
             st.session_state["health_chat_input"] = ""
-            st.rerun()   # REQUIRED to refresh the UI safely
 
     # Display conversation history
-    st.markdown("### Assistant Response")
-    for chat in st.session_state.health_chat_history:
-        st.write(f"**You:** {chat['q']}")
-        st.write(f"**Assistant:** {chat['a']}")
-        st.write("---")
+    if st.session_state.health_chat_history:
+        st.markdown("### Assistant Response")
+        for chat in st.session_state.health_chat_history:
+            st.write(f"**You:** {chat['q']}")
+            st.write(f"**Assistant:** {chat['a']}")
+            st.write("---")
 
 # ---------------------------------------------------------
 # DATA LOADING & PREPROCESSING

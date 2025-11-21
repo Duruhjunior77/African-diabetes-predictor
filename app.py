@@ -135,48 +135,40 @@ st.sidebar.markdown(
     "- Nasisira Seezibella — IT Infrastructure & Systems\n"
     "- Chimyzerem Janet Uche-Ukah — Software Developer (Cloud, Frontend)"
 )
-# ------------------------------------------------------------------
-# SIDEBAR: SIMPLE HEALTH ASSISTANT CHATBOT (non-medical)
-# ------------------------------------------------------------------
+# --------------------------------------------
+# SIDEBAR: HEALTH CHAT ASSISTANT (BETA)
+# --------------------------------------------
 
-# Keep chat history in the current Streamlit session
-if "health_chat_history" not in st.session_state:
-    st.session_state.health_chat_history = []
+with st.sidebar.expander("Health Assistant (beta)", expanded=True):
 
-with st.sidebar.expander("Health Assistant (beta)", expanded=False):
-    st.markdown(
-        "Ask simple questions about diabetes risk factors, lifestyle, or what "
-        "the numbers on this page mean.\n\n"
-        "**Important:** This assistant cannot give medical advice or diagnoses."
-    )
+    st.write("Ask simple questions about diabetes risk factors, lifestyle, or what the numbers mean.")
+    st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
 
-    user_msg = st.text_area(
-        "Your question",
-        key="health_chat_input",
-        placeholder="E.g. What does a high glucose value mean?",
-        height=80,
-    )
+    # User input
+    user_question = st.text_area("Your question", key="health_chat_input")
 
-    send = st.button("Send", key="health_chat_send")
+    # Send button
+    if st.button("Send", key="send_health_question"):
+        question = st.session_state.health_chat_input.strip()
 
-    if send and user_msg.strip():
-        # Store user message
-        st.session_state.health_chat_history.append(("You", user_msg.strip()))
-        # Generate simple reply
-        reply = simple_health_reply(user_msg)
-        st.session_state.health_chat_history.append(("Assistant", reply))
-        # Clear input box on next run
-        st.session_state.health_chat_input = ""
+        if question:
+            # Generate answer (placeholder; replace later)
+            answer = f"Here is a simple explanation about: {question}"
 
-    # Show chat history (latest at the bottom)
-    if st.session_state.health_chat_history:
-        st.markdown("---")
-        st.markdown("**Conversation**")
-        for speaker, msg in st.session_state.health_chat_history:
-            if speaker == "You":
-                st.markdown(f"**You:** {msg}")
-            else:
-                st.markdown(f"**Assistant:** {msg}")
+            # Save to history
+            st.session_state.health_chat_history.append(
+                {"q": question, "a": answer}
+            )
+
+            # Clear box
+            st.session_state.health_chat_input = ""
+
+    # Display previous messages
+    st.markdown("### Assistant Response")
+    for chat in st.session_state.health_chat_history:
+        st.write(f"**You:** {chat['q']}")
+        st.write(f"**Assistant:** {chat['a']}")
+        st.write("---")
 
 # ---------------------------------------------------------
 # DATA LOADING & PREPROCESSING

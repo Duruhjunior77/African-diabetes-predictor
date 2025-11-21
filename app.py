@@ -16,14 +16,17 @@ st.image("futurizestudio_logo.jpeg", width=150)
 # Team Section
 # -------------------------------------------
 
-st.sidebar.markdown("## 👥 Project Team")
+st.sidebar.title("Project Team")
+
 st.sidebar.markdown("""
-**Team Name:** Futurize Academy – Zenith-Trident Team  
+**Team Name:** Futurize Academy ⚡ Zenith-Trident Team
+
 **Developers:**
-- **Joseph Duruh** — Lead Developer, AI/ML, Computational Neuroscience  
-- **Nasisira Seezibella** — IT Infrastructure, Network & Systems  
-- **Chimzyterem (Uche) Uche-Ukah** — Software Developer, Cloud, Frontend  
+- **Joseph Duruh** – Lead Developer (AI/ML)
+- **Nasisira Seezibella** – IT Infrastructure & Systems
+- **Chimyzerem Janet Uche-Ukah** – Software Developer
 """)
+
 
 
 

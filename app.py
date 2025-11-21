@@ -16,19 +16,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="African Diabetes Predictor")
 st.image("futurizestudio_logo.jpeg", width=150)
 
-# -------------------------------
-# TEAM SECTION
-# -------------------------------
-st.sidebar.title("Project Team")
 
-st.sidebar.markdown("""
-Team Name: Futurize Academy - Zenith-Trident Team
-
-Developers:
-- Joseph Duruh - Lead Developer (AI/ML)
-- Nasisira Seezibella - IT Infrastructure & Systems
-- Chimyzerem Janet Uche-Ukah - Software Developer
-""")
 
 # -------------------------------
 # LOAD DATA

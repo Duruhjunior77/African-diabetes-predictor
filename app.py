@@ -10,6 +10,82 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
 import matplotlib.pyplot as plt
 
+# ------------------------------------------------------------------
+# Simple rule-based "health assistant" reply (no external API)
+# ------------------------------------------------------------------
+def simple_health_reply(question: str) -> str:
+    """
+    Very simple, non-medical helper that gives general information
+    about diabetes risk factors. It is NOT a diagnostic tool.
+    """
+    q = question.lower()
+    parts = []
+
+    # Always start with a disclaimer
+    parts.append(
+        "This answer is for general information only and is **not** a diagnosis "
+        "or medical advice."
+    )
+
+    if any(word in q for word in ["glucose", "sugar", "blood sugar"]):
+        parts.append(
+            "High blood glucose is one of the main risk factors for type 2 "
+            "diabetes. Doctors usually look at fasting glucose, an oral "
+            "glucose tolerance test, or HbA1c to understand longer-term control."
+        )
+        parts.append(
+            "Lifestyle changes like healthier diet, regular physical activity, "
+            "and weight management can sometimes improve glucose levels, but "
+            "any treatment decisions must be made with a healthcare professional."
+        )
+
+    elif any(word in q for word in ["bmi", "weight", "overweight", "obese"]):
+        parts.append(
+            "BMI (Body Mass Index) is a rough indicator of whether weight is in a "
+            "low, normal, or high range for a given height. Higher BMI can be "
+            "linked with increased diabetes and cardiovascular risk, but it does "
+            "not tell the whole story."
+        )
+        parts.append(
+            "A balanced diet, more movement, and sleep/stress management can help, "
+            "but please talk with a professional before making big changes."
+        )
+
+    elif any(word in q for word in ["blood pressure", "bp", "hypertension"]):
+        parts.append(
+            "Raised blood pressure (hypertension) can damage blood vessels over "
+            "time and is often seen together with diabetes."
+        )
+        parts.append(
+            "Reducing salt intake, avoiding smoking, moderating alcohol, and "
+            "staying active can help, but medication decisions must be made by a "
+            "clinician."
+        )
+
+    elif "pregnant" in q or "pregnancy" in q:
+        parts.append(
+            "Diabetes in pregnancy (including gestational diabetes) needs close "
+            "monitoring by a healthcare team. Online tools like this cannot "
+            "assess pregnancy risk."
+        )
+
+    else:
+        parts.append(
+            "Diabetes risk is usually assessed using a combination of factors: "
+            "glucose, blood pressure, weight/BMI, age, family history, and "
+            "sometimes cholesterol and other labs."
+        )
+
+    # Always end with a strong safety reminder
+    parts.append(
+        "For any personal health concern, new symptoms, or abnormal lab results, "
+        "please contact a doctor or qualified health professional. If something "
+        "feels urgent, seek emergency care."
+    )
+
+    return "\n\n".join(parts)
+
+
 # -------------------------------
 # PAGE CONFIG + LOGO
 # -------------------------------

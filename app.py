@@ -6,34 +6,36 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
-from sklearn.metrics import accuracy_score, roc_auc_score, classification_report, confusion_matrix
-import seaborn as sns
+from sklearn.metrics import accuracy_score, roc_auc_score
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="African Diabetes Predictor", page_icon="🩺")
+# -------------------------------
+# PAGE CONFIG + LOGO
+# -------------------------------
+st.set_page_config(page_title="African Diabetes Predictor")
 st.image("futurizestudio_logo.jpeg", width=150)
-# -------------------------------------------
-# Team Section
-# -------------------------------------------
 
+# -------------------------------
+# TEAM SECTION
+# -------------------------------
 st.sidebar.title("Project Team")
 
 st.sidebar.markdown("""
-**Team Name:** Futurize Academy ⚡ Zenith-Trident Team
+Team Name: Futurize Academy - Zenith-Trident Team
 
-**Developers:**
-- **Joseph Duruh** – Lead Developer (AI/ML)
-- **Nasisira Seezibella** – IT Infrastructure & Systems
-- **Chimyzerem Janet Uche-Ukah** – Software Developer
+Developers:
+- Joseph Duruh - Lead Developer (AI/ML)
+- Nasisira Seezibella - IT Infrastructure & Systems
+- Chimyzerem Janet Uche-Ukah - Software Developer
 """)
 
-
-
-
+# -------------------------------
+# LOAD DATA
+# -------------------------------
 @st.cache_data
 def load_data():
     url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
-    cols = ['preg', 'glucose', 'bp', 'skin', 'insulin','bmi', 'pedigree', 'age', 'class']
+    cols = ['preg','glucose','bp','skin','insulin','bmi','pedigree','age','class']
     df = pd.read_csv(url, names=cols)
 
     zero_cols = ['glucose','bp','skin','insulin','bmi']
@@ -49,6 +51,9 @@ def load_data():
 
     return df
 
+# -------------------------------
+# TRAIN MODELS
+# -------------------------------
 @st.cache_resource
 def train_models(df):
     X = df.drop("class", axis=1)
@@ -57,13 +62,13 @@ def train_models(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_train,X_test,y_train,y_test = train_test_split(
         X_scaled, y, test_size=0.2, random_state=42)
 
     models = {
         "Logistic Regression": LogisticRegression(solver="liblinear"),
         "Random Forest": RandomForestClassifier(n_estimators=150, random_state=42),
-        "XGBoost": XGBClassifier(eval_metric='logloss', use_label_encoder=False)
+        "XGBoost": XGBClassifier(eval_metric='logloss')
     }
 
     results = {}
@@ -72,13 +77,11 @@ def train_models(df):
         m.fit(X_train, y_train)
         preds = m.predict(X_test)
         proba = m.predict_proba(X_test)[:, 1]
-        accuracy = accuracy_score(y_test, preds)
-        auc = roc_auc_score(y_test, proba)
 
         results[name] = {
             "model": m,
-            "accuracy": accuracy,
-            "auc": auc,
+            "accuracy": accuracy_score(y_test, preds),
+            "auc": roc_auc_score(y_test, proba),
             "scaler": scaler,
             "features": X.columns
         }
@@ -88,23 +91,31 @@ def train_models(df):
 df = load_data()
 models = train_models(df)
 
-st.title("🩺 African Diabetes Risk Predictor")
-st.markdown("Prototype model using multiple ML algorithms.")
+# -------------------------------
+# TITLE
+# -------------------------------
+st.markdown("<h1 style='color:#003366;'>African Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
+st.write("A prototype model using multiple machine learning algorithms.")
 
-# model selection
+# -------------------------------
+# MODEL SELECTION
+# -------------------------------
 selected = st.selectbox("Choose model", list(models.keys()))
 model_info = models[selected]
 model = model_info["model"]
 scaler = model_info["scaler"]
 features = model_info["features"]
 
-# display performance
+# PERFORMANCE
 st.subheader("Model Performance")
-st.write("Accuracy:", model_info["accuracy"])
-st.write("ROC-AUC:", model_info["auc"])
+st.write("Accuracy:", round(model_info["accuracy"],3))
+st.write("ROC-AUC:", round(model_info["auc"],3))
 
-# patient input
-st.sidebar.header("Patient Data")
+# -------------------------------
+# PATIENT INPUT SIDEBAR
+# -------------------------------
+st.sidebar.header("Enter Patient Data")
+
 def user_input():
     d = {}
     for feature in features:
@@ -117,12 +128,55 @@ def user_input():
     return pd.DataFrame([d])
 
 input_df = user_input()
+
 st.subheader("Patient Input")
 st.write(input_df)
 
+# -------------------------------
+# PREDICTION
+# -------------------------------
 if st.button("Predict"):
+
     X = scaler.transform(input_df[features])
     proba = model.predict_proba(X)[0][1]
     pred = model.predict(X)[0]
-    st.write("Risk Probability:", f"{proba*100:.2f}%")
-    st.write("Prediction:", "High Risk" if pred==1 else "Low Risk")
+
+    percent = round(proba*100,2)
+
+    # ---------------------------
+    # COLOR CODING
+    # ---------------------------
+    if percent < 35:
+        color = "green"
+        label = "Low Risk"
+    elif percent < 65:
+        color = "gold"
+        label = "Medium Risk"
+    else:
+        color = "red"
+        label = "High Risk"
+
+    # ---------------------------
+    # RESULT CARD
+    # ---------------------------
+    st.markdown(
+        f"""
+        <div style="
+            padding:15px;
+            border-radius:10px;
+            background-color:#f2f2f2;
+            border-left:10px solid {color};
+        ">
+            <h3 style="color:{color};">Prediction Result</h3>
+            <p><strong>Risk Score:</strong> {percent}%</p>
+            <p><strong>Risk Level:</strong> {label}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ---------------------------
+    # PROGRESS BAR
+    # ---------------------------
+    st.write("Risk Indicator:")
+    st.progress(percent/100)

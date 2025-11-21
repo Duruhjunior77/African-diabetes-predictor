@@ -10,48 +10,59 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
 import matplotlib.pyplot as plt
 
-# =============================
-# HELPER FUNCTIONS FOR ASSISTANT
-# =============================
+# =======================================================
+# PAGE CONFIG (set once, at the very top)
+# =======================================================
+st.set_page_config(
+    page_title="African Diabetes Predictor",
+    page_icon=None,
+    layout="wide"
+)
 
-def classify_question(question):
+# =======================================================
+# HELPER FUNCTIONS FOR ASSISTANT
+# =======================================================
+
+def classify_question(question: str) -> str:
+    """Roughly classify what the user is asking about."""
     q = question.lower()
     if any(word in q for word in ["preg", "pregnancies", "pregnancy"]):
         return "pregnancies_info"
-    if any(word in q for word in ["glucose", "sugar level"]):
+    if any(word in q for word in ["glucose", "sugar level", "blood sugar"]):
         return "glucose_info"
-    if any(word in q for word in ["bmi", "weight", "obesity"]):
+    if any(word in q for word in ["bmi", "weight", "obesity", "overweight"]):
         return "bmi_info"
-    if any(word in q for word in ["insulin"]):
+    if "insulin" in q:
         return "insulin_info"
+    if any(word in q for word in ["blood pressure", "bp", "hypertension"]):
+        return "bp_info"
     return "general_info"
 
 
-def generate_answer(category, question):
+def short_parameter_explanation(category: str) -> str:
+    """Short explanations for specific parameters."""
     if category == "pregnancies_info":
-        return "‘Preg’ refers to the number of pregnancies the patient has had."
+        return "“Preg” refers to the **number of pregnancies** the patient has had."
     if category == "glucose_info":
-        return "Glucose refers to blood sugar concentration measured in mg/dL."
+        return "“Glucose” is the **blood sugar concentration**, usually measured in mg/dL."
     if category == "bmi_info":
-        return "BMI is Body Mass Index, a measure of body fat based on height and weight."
+        return (
+            "BMI (**Body Mass Index**) is a rough measure of body fat based on "
+            "height and weight."
+        )
     if category == "insulin_info":
-        return "Insulin level is the amount of insulin in blood and reflects pancreatic function."
-    return f"I can help explain diabetes risk factors. You asked: {question}"
+        return (
+            "“Insulin” here is the **blood insulin level**, which reflects how "
+            "the pancreas is working."
+        )
+    if category == "bp_info":
+        return (
+            "“BP” is **blood pressure**. Persistently high blood pressure "
+            "can increase cardiovascular and diabetes-related risks."
+        )
+    return ""
 
 
-# -----------------------------------------
-# SAFE INITIALIZATION FOR HEALTH CHATBOT
-# -----------------------------------------
-if "health_chat_input" not in st.session_state:
-    st.session_state["health_chat_input"] = ""
-
-if "health_chat_history" not in st.session_state:
-    st.session_state["health_chat_history"] = []
-
-
-# ------------------------------------------------------------------
-# Simple rule-based "health assistant" reply (no external API)
-# ------------------------------------------------------------------
 def simple_health_reply(question: str) -> str:
     """
     Very simple, non-medical helper that gives general information
@@ -69,7 +80,7 @@ def simple_health_reply(question: str) -> str:
     if any(word in q for word in ["glucose", "sugar", "blood sugar"]):
         parts.append(
             "High blood glucose is one of the main risk factors for type 2 "
-            "diabetes. Doctors usually look at fasting glucose, an oral "
+            "diabetes. Doctors may look at fasting glucose, an oral "
             "glucose tolerance test, or HbA1c to understand longer-term control."
         )
         parts.append(
@@ -125,139 +136,41 @@ def simple_health_reply(question: str) -> str:
     return "\n\n".join(parts)
 
 
-# -------------------------------
-# PAGE CONFIG + LOGO
-# -------------------------------
-st.set_page_config(page_title="African Diabetes Predictor")
-st.image("futurizestudio_logo.jpeg", width=150)
+def generate_health_answer(question: str) -> str:
+    """
+    Combined assistant:
+    1) Short explanation of specific parameters (if relevant)
+    2) General education about diabetes risk factors
+    """
+    category = classify_question(question)
+    short_part = short_parameter_explanation(category)
+    long_part = simple_health_reply(question)
 
+    if short_part:
+        return f"{short_part}\n\n---\n\n{long_part}"
+    else:
+        return long_part
 
-
-# -------------------------------
-# LOAD DATA
-# -------------------------------
-from sklearn.metrics import accuracy_score, roc_auc_score
 
 # ---------------------------------------------------------
-# PAGE CONFIG
+# SAFE INITIALIZATION FOR HEALTH CHATBOT STATE
 # ---------------------------------------------------------
-st.set_page_config(
-    page_title="African Diabetes Predictor",
-    page_icon=None,
-    layout="wide"
-)
+if "health_chat_input" not in st.session_state:
+    st.session_state["health_chat_input"] = ""
 
-# ---------------------------------------------------------
-# SIDEBAR: LOGO + TEAM
-# ---------------------------------------------------------
-st.sidebar.image("futurizestudio_logo.jpeg", width=140)
-
-st.sidebar.title("Project Team")
-
-st.sidebar.markdown(
-    "**Team Name:** Futurize Academy | Zenith-Trident Team"
-)
-
-st.sidebar.markdown(
-    "**Developers:**\n"
-    "- Joseph Duruh — Lead Developer (AI / ML)\n"
-    "- Nasisira Seezibella — IT Infrastructure & Systems\n"
-    "- Chimyzerem Janet Uche-Ukah — Software Developer (Cloud, Frontend)"
-)
-
-# ---------------------------
-# SIDEBAR: HEALTH CHAT ASSISTANT (BETA)
-# ---------------------------
-with st.sidebar.expander("Health Assistant (beta)", expanded=True):
-
-    st.write("Ask simple questions about diabetes risk factors, lifestyle, or what the numbers mean.")
-
-    st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
-
-    # User input
-    user_question = st.text_area("Your question", key="health_chat_input")
-
-    # Send button
-    if st.button("Send"):
-        question = st.session_state.health_chat_input.strip()
-
-        if question:
-            # Generate answer
-            answer = generate_health_answer(question)
-
-            # Save history
-            st.session_state.health_chat_history.append(
-                {"q": question, "a": answer}
-            )
-
-            # Clear input box
-            st.session_state.health_chat_input = ""
-
-    # Show chat history
-    st.markdown("### Assistant Response")
-    for chat in st.session_state.health_chat_history:
-        st.write(f"**You:** {chat['q']}")
-        st.write(f"**Assistant:** {chat['a']}")
-        st.write("---")
+if "health_chat_history" not in st.session_state:
+    st.session_state["health_chat_history"] = []
 
 
-# -----------------------------
-# HEALTH ASSISTANT (BETA)
-# -----------------------------
-with st.sidebar.expander("Health Assistant (beta)", expanded=True):
-
-    st.write("Ask simple questions about diabetes risk factors, lifestyle, or what the numbers mean.")
-    st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
-
-    # Initialize session state once
-    if "health_chat_input" not in st.session_state:
-        st.session_state["health_chat_input"] = ""
-
-    if "health_chat_history" not in st.session_state:
-        st.session_state["health_chat_history"] = []
-
-    # User input box
-    user_question = st.text_area(
-        "Your question",
-        key="health_chat_input",
-        placeholder="Type your question here..."
-    )
-
-    # Send Button
-    if st.button("Send", key="send_button"):
-
-        question = user_question.strip()
-
-        if question:
-            # Simple placeholder answer (you can improve this)
-            answer = f"Here is a simple explanation about: **{question}**.\n(This is a beta response.)"
-
-            # Append to chat history
-            st.session_state.health_chat_history.append(
-                {"q": question, "a": answer}
-            )
-
-            # Clear only the text box (safe method)
-            st.session_state["health_chat_input"] = ""
-
-    # Display conversation history
-    if st.session_state.health_chat_history:
-        st.markdown("### Assistant Response")
-        for chat in st.session_state.health_chat_history:
-            st.write(f"**You:** {chat['q']}")
-            st.write(f"**Assistant:** {chat['a']}")
-            st.write("---")
-
-# ---------------------------------------------------------
+# =======================================================
 # DATA LOADING & PREPROCESSING
-# ---------------------------------------------------------
+# =======================================================
 @st.cache_data
 def load_data():
     """
     Load and preprocess the Pima Indians Diabetes dataset.
     """
     url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
-    cols = ['preg','glucose','bp','skin','insulin','bmi','pedigree','age','class']
     cols = [
         "preg", "glucose", "bp", "skin", "insulin",
         "bmi", "pedigree", "age", "class"
@@ -278,20 +191,12 @@ def load_data():
 
     return df
 
-# -------------------------------
-# TRAIN MODELS
-# -------------------------------
-@st.cache_resource
-def train_models(df):
-    X = df.drop("class", axis=1)
-    y = df["class"]
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
 
 df = load_data()
 
-# Features and target
+# =======================================================
+# FEATURES, SCALING & TRAIN/TEST SPLIT
+# =======================================================
 FEATURE_COLS = [
     "preg", "glucose", "bp", "skin", "insulin",
     "bmi", "pedigree", "age", "bmi_age", "glucose_bmi", "high_bp"
@@ -305,26 +210,14 @@ y = df[TARGET_COL]
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=42
-)
-
-models = {
-    "Logistic Regression": LogisticRegression(solver="liblinear"),
-    "Random Forest": RandomForestClassifier(n_estimators=150, random_state=42),
-    "XGBoost": XGBClassifier(eval_metric="logloss")
-}
-
+# Stratified train-test split
 X_train, X_test, y_train, y_test = train_test_split(
     X_scaled, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ------------------------------
-# TRAIN MODELS
-# ---------------------------------------------
-# MODEL TRAINING FUNCTION
-# ---------------------------------------------
+# =======================================================
+# MODEL TRAINING FUNCTION (CACHED)
+# =======================================================
 @st.cache_resource
 def train_models():
     """Train multiple models and return them with their metrics."""
@@ -332,7 +225,7 @@ def train_models():
     metrics = {}
 
     # Logistic Regression
-    log_reg = LogisticRegression(max_iter=1000)
+    log_reg = LogisticRegression(max_iter=1000, solver="liblinear")
     log_reg.fit(X_train, y_train)
     models["Logistic Regression"] = log_reg
 
@@ -355,7 +248,7 @@ def train_models():
             y_proba = model.predict_proba(X_test)[:, 1]
         else:
             y_proba = model.decision_function(X_test)
-        
+
         acc = accuracy_score(y_test, y_pred)
         auc = roc_auc_score(y_test, y_proba)
 
@@ -364,12 +257,70 @@ def train_models():
     return models, metrics
 
 
-
 models, model_metrics = train_models()
 
-# ---------------------------------------------------------
+# =======================================================
+# SIDEBAR: LOGO + TEAM
+# =======================================================
+st.sidebar.image("futurizestudio_logo.jpeg", width=140)
+
+st.sidebar.title("Project Team")
+st.sidebar.markdown(
+    "**Team Name:** Futurize Academy | Zenith-Trident Team"
+)
+
+st.sidebar.markdown(
+    "**Developers:**\n"
+    "- Joseph Duruh — Lead Developer (AI / ML)\n"
+    "- Nasisira Seezibella — IT Infrastructure & Systems\n"
+    "- Chimyzerem Janet Uche-Ukah — Software Developer (Cloud, Frontend)"
+)
+
+# =======================================================
+# SIDEBAR: HEALTH ASSISTANT (BETA)
+# =======================================================
+with st.sidebar.expander("Health Assistant (beta)", expanded=True):
+
+    st.write(
+        "Ask simple questions about diabetes risk factors, lifestyle, "
+        "or what the numbers on this page mean."
+    )
+    st.info("⚠️ This assistant cannot give medical advice or diagnoses.")
+
+    # User input box (bound to session_state)
+    user_question = st.text_area(
+        "Your question",
+        key="health_chat_input",
+        placeholder="E.g. What does 'preg' mean? How is BMI related to risk?"
+    )
+
+    # Send Button
+    if st.button("Send", key="send_button"):
+        question = user_question.strip()
+
+        if question:
+            # Generate answer with our helper
+            answer = generate_health_answer(question)
+
+            # Append to chat history
+            st.session_state.health_chat_history.append(
+                {"q": question, "a": answer}
+            )
+
+            # Clear the text box
+            st.session_state["health_chat_input"] = ""
+
+    # Display conversation history
+    if st.session_state.health_chat_history:
+        st.markdown("### Assistant Response")
+        for chat in st.session_state.health_chat_history:
+            st.write(f"**You:** {chat['q']}")
+            st.write(f"**Assistant:** {chat['a']}")
+            st.write("---")
+
+# =======================================================
 # SIDEBAR: PATIENT INPUTS + RESET
-# ---------------------------------------------------------
+# =======================================================
 
 # Default values for inputs
 default_inputs = {
@@ -383,7 +334,7 @@ default_inputs = {
     "age": 35,
 }
 
-# Initialize session state once
+# Initialize patient inputs once
 if "inputs_initialized" not in st.session_state:
     for k, v in default_inputs.items():
         st.session_state[k] = v
@@ -474,9 +425,13 @@ bmi_age = bmi * age
 glucose_bmi = glucose * bmi
 high_bp = 1 if bp >= 130 else 0
 
-# ---------------------------------------------------------
+# =======================================================
 # MAIN LAYOUT: TITLE + PERFORMANCE + ABOUT
-# ---------------------------------------------------------
+# =======================================================
+
+# Top logo in main area
+st.image("futurizestudio_logo.jpeg", width=150)
+
 st.title("African Diabetes Risk Predictor")
 st.markdown(
     "A prototype clinical decision support tool using multiple "
@@ -503,19 +458,19 @@ with perf_col:
 with about_col:
     with st.expander("About the model and data", expanded=False):
         st.markdown(
-            "- Dataset: Pima Indians Diabetes (768 samples, 8 clinical features)\n"
+            "- Dataset: **Pima Indians Diabetes** (768 samples, 8 clinical features)\n"
             "- Target: Binary outcome indicating diabetes\n"
-            "- Features include pregnancies, glucose, blood pressure, insulin, BMI, "
-            "diabetes pedigree and age.\n"
-            "- Extra engineered features: BMI × Age, Glucose × BMI, and a high blood "
+            "- Core features: pregnancies, glucose, blood pressure, skin thickness, "
+            "insulin, BMI, diabetes pedigree, and age.\n"
+            "- Engineered features: BMI × Age, Glucose × BMI, and a high blood "
             "pressure flag.\n\n"
-            "This app is for research and education. It does not replace medical "
-            "diagnosis or professional judgement."
+            "This app is for **research and education**. It does **not** replace "
+            "medical diagnosis or professional judgement."
         )
 
-# ---------------------------------------------------------
-# PATIENT INPUT TABLE
-# ---------------------------------------------------------
+# =======================================================
+# PATIENT INPUT SUMMARY
+# =======================================================
 st.subheader("Patient Input Summary")
 
 patient_row = pd.DataFrame(
@@ -539,9 +494,9 @@ st.dataframe(
     use_container_width=True
 )
 
-# ---------------------------------------------------------
+# =======================================================
 # PREDICTION
-# ---------------------------------------------------------
+# =======================================================
 if "history" not in st.session_state:
     st.session_state["history"] = []
 
@@ -600,9 +555,9 @@ if predict_button:
     m2.metric("Risk score (0–100)", f"{risk_score:.1f}")
     m3.metric("Model used", model_name)
 
-# ---------------------------------------------------------
+# =======================================================
 # HISTORY + DOWNLOAD
-# ---------------------------------------------------------
+# =======================================================
 st.subheader("Prediction History and Export")
 
 if st.session_state["history"]:
@@ -617,13 +572,13 @@ if st.session_state["history"]:
         mime="text/csv"
     )
 else:
-    st.info("No predictions yet. Enter patient data and click Predict to see results.")
+    st.info("No predictions yet. Enter patient data and click **Predict** to see results.")
 
-# ---------------------------------------------------------
+# =======================================================
 # FOOTER
-# ---------------------------------------------------------
+# =======================================================
 st.markdown("---")
 st.markdown(
-    "This tool is an experimental prototype for educational and research purposes only. "
-    "It is not intended for clinical use or to guide real-world medical decisions."
+    "This tool is an **experimental prototype** for educational and research purposes only. "
+    "It is **not** intended for clinical use or to guide real-world medical decisions."
 )

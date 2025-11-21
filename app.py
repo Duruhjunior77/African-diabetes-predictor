@@ -119,28 +119,31 @@ y = df[TARGET_COL]
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-    X_train,X_test,y_train,y_test = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42)
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
 
-    models = {
-        "Logistic Regression": LogisticRegression(solver="liblinear"),
-        "Random Forest": RandomForestClassifier(n_estimators=150, random_state=42),
-        "XGBoost": XGBClassifier(eval_metric='logloss')
-    }
-# Train / test split
+models = {
+    "Logistic Regression": LogisticRegression(solver="liblinear"),
+    "Random Forest": RandomForestClassifier(n_estimators=150, random_state=42),
+    "XGBoost": XGBClassifier(eval_metric="logloss")
+}
+
 X_train, X_test, y_train, y_test = train_test_split(
     X_scaled, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ---------------------------------------------------------
-# MODEL TRAINING
-# ---------------------------------------------------------
+# ------------------------------
+# TRAIN MODELS
+# ---------------------------------------------
+# MODEL TRAINING FUNCTION
+# ---------------------------------------------
 @st.cache_resource
 def train_models():
-    """
-    Train multiple models and return them with their metrics.
-    """
+    """Train multiple models and return them with their metrics."""
     models = {}
+    metrics = {}
 
     # Logistic Regression
     log_reg = LogisticRegression(max_iter=1000)
@@ -148,152 +151,32 @@ def train_models():
     models["Logistic Regression"] = log_reg
 
     # Random Forest
-    rf = RandomForestClassifier(
-        n_estimators=300,
-        random_state=42,
-        max_depth=None
-    )
+    rf = RandomForestClassifier(n_estimators=150, random_state=42)
     rf.fit(X_train, y_train)
     models["Random Forest"] = rf
 
     # XGBoost
-    xgb = XGBClassifier(
-        n_estimators=300,
-        learning_rate=0.05,
-        max_depth=4,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        eval_metric="logloss",
-        random_state=42,
-        use_label_encoder=False
-    )
+    xgb = XGBClassifier(eval_metric="logloss")
     xgb.fit(X_train, y_train)
     models["XGBoost"] = xgb
 
-    results = {}
-
-    for name, m in models.items():
-        m.fit(X_train, y_train)
-        preds = m.predict(X_test)
-        proba = m.predict_proba(X_test)[:, 1]
-
-        results[name] = {
-            "model": m,
-            "accuracy": accuracy_score(y_test, preds),
-            "auc": roc_auc_score(y_test, proba),
-            "scaler": scaler,
-            "features": X.columns
-        }
-
-    return results
-
-df = load_data()
-models = train_models(df)
-
-# -------------------------------
-# TITLE
-# -------------------------------
-st.markdown("<h1 style='color:#003366;'>African Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
-st.write("A prototype model using multiple machine learning algorithms.")
-
-# -------------------------------
-# MODEL SELECTION
-# -------------------------------
-selected = st.selectbox("Choose model", list(models.keys()))
-model_info = models[selected]
-model = model_info["model"]
-scaler = model_info["scaler"]
-features = model_info["features"]
-
-# PERFORMANCE
-st.subheader("Model Performance")
-st.write("Accuracy:", round(model_info["accuracy"],3))
-st.write("ROC-AUC:", round(model_info["auc"],3))
-
-# -------------------------------
-# PATIENT INPUT SIDEBAR
-# -------------------------------
-st.sidebar.header("Enter Patient Data")
-
-def user_input():
-    d = {}
-    for feature in features:
-        if feature == "high_bp":
-            continue
-        d[feature] = st.sidebar.number_input(feature, value=1.0)
-    d["high_bp"] = 1 if d["bp"] > 130 else 0
-    d["bmi_age"] = d["bmi"] * d["age"]
-    d["glucose_bmi"] = d["glucose"] * d["bmi"]
-    return pd.DataFrame([d])
-
-input_df = user_input()
-
-st.subheader("Patient Input")
-st.write(input_df)
-
-# -------------------------------
-# PREDICTION
-# -------------------------------
-if st.button("Predict"):
-
-    X = scaler.transform(input_df[features])
-    proba = model.predict_proba(X)[0][1]
-    pred = model.predict(X)[0]
-
-    percent = round(proba*100,2)
-
-    # ---------------------------
-    # COLOR CODING
-    # ---------------------------
-    if percent < 35:
-        color = "green"
-        label = "Low Risk"
-    elif percent < 65:
-        color = "gold"
-        label = "Medium Risk"
-    else:
-        color = "red"
-        label = "High Risk"
-
-    # ---------------------------
-    # RESULT CARD
-    # ---------------------------
-    st.markdown(
-        f"""
-        <div style="
-            padding:15px;
-            border-radius:10px;
-            background-color:#f2f2f2;
-            border-left:10px solid {color};
-        ">
-            <h3 style="color:{color};">Prediction Result</h3>
-            <p><strong>Risk Score:</strong> {percent}%</p>
-            <p><strong>Risk Level:</strong> {label}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ---------------------------
-    # PROGRESS BAR
-    # ---------------------------
-    st.write("Risk Indicator:")
-    st.progress(percent/100)
-    # Metrics
-    metrics = {}
+    # Evaluate all models
     for name, model in models.items():
         y_pred = model.predict(X_test)
+
+        # Probabilities (if available)
         if hasattr(model, "predict_proba"):
             y_proba = model.predict_proba(X_test)[:, 1]
         else:
-            # Fallback for models without predict_proba
             y_proba = model.decision_function(X_test)
-
+        
         acc = accuracy_score(y_test, y_pred)
         auc = roc_auc_score(y_test, y_proba)
+
         metrics[name] = (acc, auc)
 
     return models, metrics
+
 
 
 models, model_metrics = train_models()
